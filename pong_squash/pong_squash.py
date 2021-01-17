@@ -4,10 +4,12 @@
 from random import choice
 
 # python gaming framework
-from pygame import init as init_pygame, quit as quit_pygame
+from pygame import init as init_pygame, quit as quit_pygame, \
+    get_init as pygame_is_active
 from pygame.constants import QUIT, KEYDOWN, K_LEFT, K_RIGHT
 from pygame.display import set_mode as set_mode_of_screen, \
     flip as flip_screen, set_caption as set_caption_of_screen
+from pygame.font import init as init_pygame_fonts, SysFont
 from pygame.rect import Rect
 from pygame.draw import circle as draw_circle, rect as draw_rect
 from pygame.event import get as get_event
@@ -18,17 +20,30 @@ from pygame.time import Clock, wait
 FRAMES_PER_SECOND = 120
 RESTART_TIME = 1000
 
-WINDOW_WIDTH = 480
+WINDOW_WIDTH = 640
 WINDOW_HEIGHT = 480
 WINDOW_COLOR = 0, 0, 0  # black
+
+init_pygame_fonts()
+FONT = SysFont('couriernewbold', 70, bold=False)
+FONT_COLOR = 255, 255, 255  # white
+
+SHOTS_LABEL_POSITION \
+    = (WINDOW_WIDTH
+       - FONT.render('Shots:  0000', True, FONT_COLOR).get_width()) // 2, 10
+GAME_OVER_LABEL = FONT.render('GAME OVER', True, FONT_COLOR)
+GAME_OVER_LABEL_POSITION = (WINDOW_WIDTH - GAME_OVER_LABEL.get_width()) // 2, \
+                           (WINDOW_HEIGHT - GAME_OVER_LABEL.get_height()) // 2
 
 MAX_VELOCITY = 2
 
 PADDLE_TOP = 450  # y-coordinate of upper left corner
 PADDLE_WIDTH = 100
 PADDLE_HEIGHT = 15
+PADDLE_INITIAL_LEFT = (WINDOW_WIDTH - PADDLE_WIDTH) // 2
 PADDLE_COLOR = 255, 40, 0  # red
 
+BALL_INITIAL_CENTER = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
 BALL_RADIUS = 15
 BALL_VELOCITY_CHOICES = tuple(v for v in range(-MAX_VELOCITY, MAX_VELOCITY + 1)
                               if v != 0)
@@ -67,8 +82,8 @@ class PongSquash:
     class Ball(Rect):
         """Internal ball class for Pong."""
 
-        def __init__(self, center=(WINDOW_WIDTH//2, WINDOW_HEIGHT//2),
-                     radius=BALL_RADIUS, velocity=(0, 0), color=BALL_COLOR):
+        def __init__(self, center=BALL_INITIAL_CENTER, radius=BALL_RADIUS,
+                     velocity=(0, 0), color=BALL_COLOR):
             """Initializes ball."""
             # in pygame, circles are defined by their bounding rectangles
             super().__init__(center[0] - radius, center[1] - radius, 2*radius,
@@ -142,15 +157,24 @@ class PongSquash:
         self._screen = set_mode_of_screen(size=(WINDOW_WIDTH, WINDOW_HEIGHT))
         set_caption_of_screen('1-Player Pong')
 
-        self._paddle = self.Paddle((WINDOW_WIDTH - PADDLE_WIDTH) // 2)
+        self._paddle = self.Paddle(PADDLE_INITIAL_LEFT)
         self._ball = self.Ball(velocity=(choice(BALL_VELOCITY_CHOICES),
                                          choice(BALL_VELOCITY_CHOICES)))
+        self._shots = 0
         self._n_lives = 3
+
+    @property
+    def _label(self):
+        return FONT.render('Shots:  {:4d}'.format(self._shots), True,
+                           FONT_COLOR)
 
     def _redraw_screen(self):
         """Redraws the screen."""
         # fill background with window color
         self._screen.fill(WINDOW_COLOR)
+
+        # draw label
+        self._screen.blit(self._label, SHOTS_LABEL_POSITION)
 
         # draw paddle and ball
         draw_rect(self._screen, self._paddle.color, self._paddle)
@@ -159,6 +183,15 @@ class PongSquash:
 
         # update whole screen
         flip_screen()
+
+    def _move_paddle_and_ball(self):
+        """Updates coordinates of the paddle and the ball to the values after
+        one time step."""
+        # update paddle
+        self._paddle.left += self._paddle.velocity
+        # update ball
+        self._ball.left += self._ball.velocity_x
+        self._ball.top += self._ball.velocity_y
 
     def _handle_wall_collision(self):
         """Handles collisions of the paddle and of the ball with the walls
@@ -185,32 +218,30 @@ class PongSquash:
         # ball leaves bottom
         if self._ball.top > WINDOW_HEIGHT:
             self._n_lives -= 1
-            self._reset()
+            if self._n_lives:
+                self._reset()
 
     def _handle_paddle_ball_collision(self):
         """Handles collisions of the ball with the paddle."""
         if self._paddle.colliderect(self._ball):
+            self._shots += 1
+            self._shots %= 10000
+
             self._ball.velocity_y *= -1
             if self._paddle.left <= self._ball.center_x <= self._paddle.right:
                 self._ball.bottom = self._paddle.top
 
-    def _move_paddle_and_ball(self):
-        """Updates coordinates of the paddle and the ball to the values after
-        one time step."""
-        # update paddle
-        self._paddle.left += self._paddle.velocity
-        # update ball
-        self._ball.left += self._ball.velocity_x
-        self._ball.top += self._ball.velocity_y
-
     def _reset(self):
         """Resets the properties of the paddle and of the ball to their
         initial values, respectively, and redraws the screen."""
+        # reset shots
+        self._shots = 0
+
         # reset paddle
-        self._paddle.left = (WINDOW_WIDTH - PADDLE_WIDTH) // 2
+        self._paddle.left = PADDLE_INITIAL_LEFT
         self._paddle.velocity = 0
         # reset ball
-        self._ball.center = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
+        self._ball.center = BALL_INITIAL_CENTER
         self._ball.velocity_x = choice(BALL_VELOCITY_CHOICES)
         self._ball.velocity_y = choice(BALL_VELOCITY_CHOICES)
 
@@ -220,11 +251,31 @@ class PongSquash:
         # wait until game continues
         wait(RESTART_TIME)
 
+    def _draw_game_over_screen(self):
+        """Draws the game over screen."""
+        # fill background with window color
+        self._screen.fill(WINDOW_COLOR)
+
+        # draw label
+        self._screen.blit(self._label, SHOTS_LABEL_POSITION)
+
+        # draw game over label
+        self._screen.blit(GAME_OVER_LABEL, GAME_OVER_LABEL_POSITION)
+
+        # draw paddles
+        draw_rect(self._screen, self._paddle.color, self._paddle)
+
+        # update whole screen
+        flip_screen()
+
     def run(self):
         """Runs the instance."""
         clock = Clock()
 
         while self._n_lives > 0:
+            # redraw screen
+            self._redraw_screen()
+
             # check for events
             for event in get_event():
                 # clicking quit button of window kills the game
@@ -240,9 +291,6 @@ class PongSquash:
                     elif event.key == K_RIGHT:
                         self._paddle.velocity = MAX_VELOCITY
 
-            # redraw screen
-            self._redraw_screen()
-
             # update coordinates of paddle and ball
             self._move_paddle_and_ball()
 
@@ -254,7 +302,14 @@ class PongSquash:
             # set count of updates
             clock.tick(FRAMES_PER_SECOND)
 
-        quit_pygame()
+        self._draw_game_over_screen()
+
+        while pygame_is_active():
+            # check for events
+            for event in get_event():
+                # clicking quit button of window kills the game
+                if event.type == QUIT:
+                    quit_pygame()
 
 
 if __name__ == '__main__':
