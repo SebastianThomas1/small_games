@@ -34,6 +34,7 @@ class TicTacToe:
                                  for col_idx in range(3))
                         for row_idx in range(3)))
 
+    @property
     def _is_finished(self) -> bool:
         return self._status[0] or self._status[1]
 
@@ -107,7 +108,7 @@ class TicTacToe:
 
         self._print_board()
 
-        while not self._is_finished():
+        while not self._is_finished:
             pos = self._ask_for_position()
             self._update_board(pos)
             self._print_board()
