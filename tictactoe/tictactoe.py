@@ -20,13 +20,16 @@ class TicTacToe:
 
     @staticmethod
     def _pos(row_idx: int, col_idx: int) -> int:
+        """Returns the position of the index pair."""
         return row_idx * 3 + col_idx + 1
 
     @staticmethod
     def _index(pos: int) -> tuple[int, int]:
+        """Returns the index pair of the position."""
         return divmod(pos - 1, 3)
 
     def _print_board(self) -> NoReturn:
+        """Prints the board."""
         print('\n'.join(' '.join(str(self._pos(row_idx, col_idx))
                                  if self._board[row_idx][col_idx] is None
                                  else ('X' if self._board[row_idx][col_idx]
@@ -36,17 +39,22 @@ class TicTacToe:
 
     @property
     def _is_finished(self) -> bool:
+        """Checks whether the game is finished."""
         return self._status[0] or self._status[1]
 
     def _is_free(self, pos: int) -> bool:
+        """Checks whether the spot on the board at the given position is
+        free."""
         row_idx, col_idx = self._index(pos)
         return self._board[row_idx][col_idx] is None
 
     def _is_valid(self, pos_rep: str) -> bool:
+        """Checks whether the user input is valid."""
         return (pos_rep.isdigit() and len(pos_rep) == 1
                 and self._is_free(int(pos_rep)))
 
     def _ask_for_position(self) -> int:
+        """Asks the user for a position number."""
         while True:
             pos_rep = input('Player {}, where will you play? '
                             .format('1 (X)' if self._first_player_active
@@ -57,10 +65,12 @@ class TicTacToe:
                 print('Invalid input!')
 
     def _update_board(self, pos: int) -> NoReturn:
+        """Updates the board at the given position."""
         row_idx, col_idx = self._index(pos)
         self._board[row_idx][col_idx] = self._first_player_active
 
     def _is_won(self, pos: int) -> bool:
+        """Checks whether the game is finished with a win."""
         row_idx, col_idx = self._index(pos)
 
         # check row and column of pos
@@ -84,10 +94,12 @@ class TicTacToe:
         return result
 
     def _is_tie(self):
+        """Checks whether the game is finished with a tie."""
         return all(self._board[row_idx][col_idx] is not None
                    for (row_idx, col_idx) in cart(range(3), range(3)))
 
     def _update_status(self, pos):
+        """Updates the status."""
         if self._is_won(pos):
             self._status = ((True, False) if self._first_player_active
                             else (False, True))
@@ -95,6 +107,7 @@ class TicTacToe:
             self._status = (True, True)
 
     def _print_result(self):
+        """Prints the result of the game."""
         if self._status == (True, True):
             print('\nGame resulted in a tie... like usual.')
         elif self._status == (True, False):
@@ -103,6 +116,7 @@ class TicTacToe:
             print('\nPlayer 2 Wins!!')
 
     def run(self):
+        """Runs the game."""
         print('TicTacToe')
         print('---------\n')
 
